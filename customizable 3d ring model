@@ -1,0 +1,41 @@
+import adsk.core, adsk.fusion, traceback
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui  = app.userInterface
+
+        # Kullanıcıdan parmak çapını al
+        finger_diameter = float(ui.inputBox('Lütfen parmak çapını girin (mm):')[0])
+
+        # Yüzüğün özelliklerini belirle
+        ring_thickness = 1 # mm
+        ring_height = 4 # mm
+
+        # Yeni bir tasarım oluştur
+        design = app.activeProduct
+        rootComp = design.rootComponent
+
+        # Yeni bir eskiz oluştur
+        sketches = rootComp.sketches
+        xyPlane = rootComp.xYConstructionPlane
+        sketch = sketches.add(xyPlane)
+
+        # Daire çiz
+        circles = sketch.sketchCurves.sketchCircles;
+        circle1 = circles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), finger_diameter/2)
+        circle2 = circles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), finger_diameter/2 + ring_thickness)
+
+        # Daireleri ekstrüde et (yüzük oluştur)
+        prof1 = sketch.profiles.item(1)
+        extrudes = rootComp.features.extrudeFeatures
+        extInput1 = extrudes.createInput(prof1, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+        distance1 = adsk.core.ValueInput.createByReal(ring_height)
+        extInput1.setDistanceExtent(False, distance1)
+        extInput1.isSolid = True
+        extrude1 = extrudes.add(extInput1)
+
+    except:
+        if ui:
+            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
