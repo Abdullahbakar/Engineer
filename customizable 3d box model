@@ -1,0 +1,88 @@
+import adsk.core, traceback
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui  = app.userInterface
+
+        # Kullanıcıdan kutu boyutlarını al
+        box_depth = float(ui.inputBox('Lütfen kutu derinliğini girin (cm):')[0])
+        box_width = float(ui.inputBox('Lütfen kutu enini girin (cm):')[0])
+        box_height = float(ui.inputBox('Lütfen kutu boyunu girin (cm):')[0])
+
+        # Kullanıcıdan bölme sayısını al
+        num_divisions = int(ui.inputBox('Lütfen bölme sayısını girin:')[0])
+
+        # Kutunun özelliklerini belirle
+        box_thickness = 0.3 # cm
+
+        # Yeni bir tasarım oluştur
+        design = app.activeProduct
+        rootComp = design.rootComponent
+
+        # Yeni bir eskiz oluştur
+        sketches = rootComp.sketches
+        xyPlane = rootComp.xYConstructionPlane
+        sketch = sketches.add(xyPlane)
+
+        # Dörtgen çiz
+        lines = sketch.sketchCurves.sketchLines;
+        line1 = lines.addByTwoPoints(adsk.core.Point3D.create(0, 0, 0), adsk.core.Point3D.create(box_width, 0, 0))
+        line2 = lines.addByTwoPoints(line1.endSketchPoint, adsk.core.Point3D.create(box_width, box_depth, 0))
+        line3 = lines.addByTwoPoints(line2.endSketchPoint, adsk.core.Point3D.create(0, box_depth, 0))
+        line4 = lines.addByTwoPoints(line3.endSketchPoint, line1.startSketchPoint)
+
+        # Dörtgeni ekstrüde et (kutu oluştur)
+        prof1 = sketch.profiles.item(0)
+        extrudes = rootComp.features.extrudeFeatures
+        extInput1 = extrudes.createInput(prof1, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+        distance1 = adsk.core.ValueInput.createByReal(box_height)
+        extInput1.setDistanceExtent(False, distance1)
+        extInput1.isSolid = True
+        extrude1 = extrudes.add(extInput1)
+
+        # Kutunun içini oymak için yeni bir eskiz oluştur
+        sketch2 = sketches.add(xyPlane)
+
+        # Dörtgen çiz
+        lines2 = sketch2.sketchCurves.sketchLines;
+        line5 = lines2.addByTwoPoints(adsk.core.Point3D.create(box_thickness, box_thickness, 0), adsk.core.Point3D.create(box_width-box_thickness, box_thickness, 0))
+        line6 = lines2.addByTwoPoints(line5.endSketchPoint, adsk.core.Point3D.create(box_width-box_thickness, box_depth-box_thickness, 0))
+        line7 = lines2.addByTwoPoints(line6.endSketchPoint, adsk.core.Point3D.create(box_thickness, box_depth-box_thickness, 0))
+        line8 = lines2.addByTwoPoints(line7.endSketchPoint, line5.startSketchPoint)
+
+        # Dörtgeni ekstrüde et (kutunun içini oymak için)
+        prof2 = sketch2.profiles.item(0)
+        extInput2 = extrudes.createInput(prof2, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        distance2 = adsk.core.ValueInput.createByReal(box_height - box_thickness)
+        extInput2.setDistanceExtent(False, distance2)
+        extInput2.isSolid = True
+        extrude2 = extrudes.add(extInput2)
+
+       # Eğer kullanıcı bölme istedi ise bölme oluştur
+        if num_divisions == 2:
+           # Bölmenin özelliklerini belirle
+           division_thickness = 0.2 # cm
+
+           # Yeni bir eskiz oluştur
+           sketch3 = sketches.add(xyPlane)
+
+           # Dörtgen çiz
+           lines3 = sketch3.sketchCurves.sketchLines;
+           line9 = lines3.addByTwoPoints(adsk.core.Point3D.create(box_width/2 - division_thickness/2 , box_thickness , 0), adsk.core.Point3D.create(box_width/2 + division_thickness/2, box_thickness, 0))
+           line10 = lines3.addByTwoPoints(line9.endSketchPoint, adsk.core.Point3D.create(box_width/2 + division_thickness/2, box_depth - box_thickness, 0))
+           line11 = lines3.addByTwoPoints(line10.endSketchPoint, adsk.core.Point3D.create(box_width/2 - division_thickness/2, box_depth - box_thickness, 0))
+           line12 = lines3.addByTwoPoints(line11.endSketchPoint, line9.startSketchPoint)
+
+           # Dörtgeni ekstrüde et (bölme oluşturmak için)
+           prof3 = sketch3.profiles.item(0)
+           extInput3 = extrudes.createInput(prof3, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+           distance3 = adsk.core.ValueInput.createByReal(box_height - box_thickness)
+           extInput3.setDistanceExtent(False, distance3)
+           extInput3.isSolid = True
+           extrude3 = extrudes.add(extInput3)
+
+    except:
+        if ui:
+            ui.messageBox('Hata: {}'.format(traceback.format_exc()))
